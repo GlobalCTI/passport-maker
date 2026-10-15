@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>পাসপোর্ট সাইজ ছবি মেকার (AI)</title>
+<style>
+:root{--bg:#f4f6fa;--card:#fff;--tx:#1b2430;--mut:#667085;--pri:#1d5fd1;--bd:#d9dfe8}
+@media (prefers-color-scheme:dark){:root{--bg:#12161c;--card:#1b212a;--tx:#e8edf4;--mut:#98a2b3;--pri:#5b9bff;--bd:#2f3844}}
+*{box-sizing:border-box}
+body{margin:0;font-family:"Noto Sans Bengali","Hind Siliguri",system-ui,sans-serif;background:var(--bg);color:var(--tx)}
+header{padding:18px 16px;text-align:center}
+h1{margin:0;font-size:1.4rem}
+header p{margin:6px 0 0;color:var(--mut);font-size:.9rem}
+main{max-width:980px;margin:0 auto;padding:0 12px 40px;display:grid;gap:14px;grid-template-columns:1fr}
+@media(min-width:800px){main{grid-template-columns:340px 1fr}}
+.card{background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:14px}
+.card h2{margin:0 0 10px;font-size:1rem}
+label{display:block;font-size:.85rem;color:var(--mut);margin:10px 0 4px}
+input[type=range],select{width:100%}
+select,button{font:inherit;padding:9px 10px;border-radius:8px;border:1px solid var(--bd);background:var(--card);color:var(--tx)}
+button{cursor:pointer}
+button.p{background:var(--pri);color:#fff;border-color:var(--pri);font-weight:600}
+button:disabled{opacity:.5;cursor:not-allowed}
+.row{display:flex;gap:8px;flex-wrap:wrap}.row>*{flex:1}
+.sw{display:flex;gap:8px;align-items:center}
+.sw button{flex:1;display:flex;align-items:center;justify-content:center;gap:6px}
+.sw button.on{outline:2px solid var(--pri)}
+.dot{width:16px;height:16px;border-radius:50%;border:1px solid #888;display:inline-block}
+#drop{border:2px dashed var(--bd);border-radius:10px;padding:22px 10px;text-align:center;cursor:pointer;color:var(--mut)}
+#drop.h{border-color:var(--pri)}
+#status{font-size:.85rem;color:var(--mut);margin-top:8px;min-height:1.2em}
+.prev{display:flex;flex-direction:column;align-items:center;gap:10px}
+#cv{max-width:100%;height:auto;max-height:480px;border:1px solid var(--bd);background:repeating-conic-gradient(#ccc 0 25%,#fff 0 50%) 0 0/16px 16px}
+#sheetcv{max-width:100%;height:auto;border:1px solid var(--bd)}
+.note{font-size:.78rem;color:var(--mut);margin-top:8px}
+</style>
+</head>
+<body>
+<header>
+  <h1>📸 পাসপোর্ট সাইজ ছবি মেকার (AI)</h1>
+  <p>১.৫ × ১.৯ ইঞ্চি · AI ব্যাকগ্রাউন্ড রিমুভ · নীল / সাদা · প্রিন্ট-রেডি</p>
+</header>
+<main>
+  <section class="card">
+    <h2>১) ছবি আপলোড</h2>
+    <div id="drop">ছবি এখানে ড্রপ করুন অথবা ক্লিক করে সিলেক্ট করুন</div>
+    <input id="file" type="file" accept="image/*" hidden>
+    <div id="status"></div>
+
+    <h2 style="margin-top:16px">২) ব্যাকগ্রাউন্ড</h2>
+    <div class="sw">
+      <button id="bBlue" class="on"><span class="dot" style="background:#2b6cc4"></span>নীল</button>
+      <button id="bWhite"><span class="dot" style="background:#fff"></span>সাদা</button>
+      <input id="bCustom" type="color" value="#2b6cc4" title="কাস্টম রঙ" style="width:44px;height:40px;padding:2px">
+    </div>
+
+    <h2 style="margin-top:16px">৩) পজিশন ঠিক করুন</h2>
+    <label>জুম <span id="zv"></span></label><input id="zoom" type="range" min="50" max="220" value="100">
+    <label>ডানে-বামে</label><input id="ox" type="range" min="-50" max="50" value="0">
+    <label>উপরে-নিচে</label><input id="oy" type="range" min="-50" max="50" value="0">
+    <label>উজ্জ্বলতা</label><input id="br" type="range" min="80" max="130" value="100">
+    <label>কোয়ালিটি (DPI)</label>
+    <select id="dpi"><option value="300" selected>৩০০ DPI (স্ট্যান্ডার্ড প্রিন্ট)</option><option value="600">৬০০ DPI (আল্ট্রা হাই)</option></select>
+  </section>
+
+  <section class="prev">
+    <div class="card" style="width:100%;text-align:center">
+      <h2>প্রিভিউ (১.৫ × ১.৯ ইঞ্চি)</h2>
+      <canvas id="cv"></canvas>
+      <div class="row" style="margin-top:10px">
+        <button class="p" id="dlOne" disabled>⬇ একটি ছবি ডাউনলোড (JPG)</button>
+        <button id="dlPng" disabled>PNG (স্বচ্ছ ব্যাকগ্রাউন্ড)</button>
+      </div>
+    </div>
+    <div class="card" style="width:100%;text-align:center">
+      <h2>প্রিন্ট শিট (একসাথে অনেকগুলো কপি)</h2>
+      <div class="row">
+        <select id="paper"><option value="a4">A4 শিট</option><option value="4x6">৪×৬ ইঞ্চি (ফটো পেপার)</option></select>
+        <select id="copies"><option value="0">পেজ ভর্তি</option><option value="4">৪ কপি</option><option value="6">৬ কপি</option><option value="8">৮ কপি</option><option value="12">১২ কপি</option></select>
+      </div>
+      <canvas id="sheetcv" style="margin-top:10px"></canvas>
+      <div class="row" style="margin-top:10px"><button class="p" id="dlSheet" disabled>⬇ প্রিন্ট শিট ডাউনলোড (JPG)</button></div>
+      <p class="note">প্রিন্ট দেওয়ার সময় "Actual size / 100%" সিলেক্ট করবেন, "Fit to page" নয়। তাহলে ঠিক ১.৫×১.৯ ইঞ্চি আসবে।</p>
+    </div>
+  </section>
+</main>
+
+<script type="module">
+let removeBackground = null;
+async function loadLib() {
+  if (removeBackground) return;
+  const m = await import("https://cdn.jsdelivr.net/npm/@imgly/background-removal@1.5.5/+esm");
+  removeBackground = m.removeBackground;
+}
+
+const $ = id => document.getElementById(id);
+const W_IN = 1.5, H_IN = 1.9;
+let cut = null, bbox = null, bg = "#2b6cc4", base = 1;
+
+const drop = $("drop"), file = $("file"), status = $("status");
+drop.onclick = () => file.click();
+drop.ondragover = e => { e.preventDefault(); drop.classList.add("h"); };
+drop.ondragleave = () => drop.classList.remove("h");
+drop.ondrop = e => { e.preventDefault(); drop.classList.remove("h"); if (e.dataTransfer.files[0]) handle(e.dataTransfer.files[0]); };
+file.onchange = () => file.files[0] && handle(file.files[0]);
+
+async function handle(f) {
+  if (!f.type.startsWith("image/")) { status.textContent = "দয়া করে একটি ছবি দিন।"; return; }
+  status.textContent = "AI মডেল লোড হচ্ছে... (প্রথমবার একটু সময় লাগবে, নেট লাগবে)";
+  try {
+    await loadLib();
+    const run = pp => removeBackground(f, {
+      ...(pp ? { publicPath: pp } : {}),
+      output: { format: "image/png" },
+      progress: (key, cur, tot) => {
+        if (key.startsWith("fetch")) status.textContent = "মডেল ডাউনলোড: " + Math.round(cur / tot * 100) + "%";
+        else status.textContent = "ব্যাকগ্রাউন্ড রিমুভ হচ্ছে...";
+      }
+    });
+    let out;
+    try {
+      out = await run("https://cdn.jsdelivr.net/npm/@imgly/background-removal-data@1.5.5/dist/");
+    } catch (e1) {
+      console.warn("jsdelivr failed, trying default", e1);
+      status.textContent = "অন্য সার্ভার থেকে চেষ্টা করা হচ্ছে...";
+      out = await run(null);
+    }
+    cut = await createImageBitmap(out);
+    findBox(); autoFit();
+    status.textContent = "✅ সম্পন্ন! নিচে পজিশন অ্যাডজাস্ট করুন।";
+    ["dlOne", "dlPng", "dlSheet"].forEach(i => $(i).disabled = false);
+    renderAll();
+  } catch (e) {
+    console.error(e);
+    status.textContent = "ত্রুটি: " + (e && e.message ? e.message : e) + " — ইন্টারনেট চালু আছে কিনা দেখুন এবং ফাইলটি সরাসরি Chrome/Edge-এ খুলুন (চ্যাটের প্রিভিউতে নয়)।";
+  }
+  file.value = "";
+}
+
+function findBox() {
+  const sc = Math.min(1, 500 / Math.max(cut.width, cut.height));
+  const w = Math.round(cut.width * sc), h = Math.round(cut.height * sc);
+  const c = document.createElement("canvas"); c.width = w; c.height = h;
+  const x = c.getContext("2d"); x.drawImage(cut, 0, 0, w, h);
+  const d = x.getImageData(0, 0, w, h).data;
+  let x0 = w, y0 = h, x1 = 0, y1 = 0;
+  for (let y = 0; y < h; y++) for (let i = 0; i < w; i++) if (d[(y * w + i) * 4 + 3] > 40) {
+    if (i < x0) x0 = i; if (i > x1) x1 = i; if (y < y0) y0 = y; if (y > y1) y1 = y;
+  }
+  bbox = { x: x0 / sc, y: y0 / sc, w: (x1 - x0) / sc, h: (y1 - y0) / sc };
+}
+
+function autoFit() {
+  // রেফারেন্স: ৩০০dpi ফ্রেম 450x570; স্কেল ফ্রেম-রিলেটিভ রাখা হয়
+  base = (0.92 * 570) / bbox.h;
+  $("zoom").value = 100; $("ox").value = 0; $("oy").value = 0;
+}
+
+function drawPhoto(ctx, W, H) {
+  ctx.fillStyle = bg; ctx.fillRect(0, 0, W, H);
+  if (!cut) return;
+  const k = W / 450;
+  const s = base * k * ($("zoom").value / 100);
+  const cx = W / 2 - (bbox.x + bbox.w / 2) * s + ($("ox").value / 100) * W;
+  const top = 0.06 * H - bbox.y * s + ($("oy").value / 100) * H;
+  ctx.imageSmoothingQuality = "high";
+  ctx.filter = `brightness(${$("br").value}%)`;
+  ctx.drawImage(cut, cx, top, cut.width * s, cut.height * s);
+  ctx.filter = "none";
+}
+
+const dpi = () => +$("dpi").value;
+const pw = () => Math.round(W_IN * dpi()), ph = () => Math.round(H_IN * dpi());
+
+function renderPreview() {
+  const c = $("cv"); c.width = pw(); c.height = ph();
+  drawPhoto(c.getContext("2d"), c.width, c.height);
+  $("zv").textContent = $("zoom").value + "%";
+}
+
+function buildSheet(target) {
+  const D = dpi();
+  const [pgW, pgH] = $("paper").value === "a4" ? [8.27, 11.69] : [4, 6];
+  const PW = Math.round(pgW * D), PH = Math.round(pgH * D);
+  target.width = PW; target.height = PH;
+  const x = target.getContext("2d");
+  x.fillStyle = "#fff"; x.fillRect(0, 0, PW, PH);
+  const w = pw(), h = ph(), gap = Math.round(0.06 * D), mar = Math.round(0.2 * D);
+  const cols = Math.max(1, Math.floor((PW - 2 * mar + gap) / (w + gap)));
+  const rows = Math.max(1, Math.floor((PH - 2 * mar + gap) / (h + gap)));
+  let n = +$("copies").value || cols * rows; n = Math.min(n, cols * rows);
+  const usedCols = Math.min(cols, n), usedRows = Math.ceil(n / usedCols);
+  const gw = usedCols * w + (usedCols - 1) * gap, gh = usedRows * h + (usedRows - 1) * gap;
+  const ox = Math.round((PW - gw) / 2), oy = Math.round((PH - gh) / 2);
+  const one = document.createElement("canvas"); one.width = w; one.height = h;
+  drawPhoto(one.getContext("2d"), w, h);
+  for (let i = 0; i < n; i++) {
+    const px = ox + (i % usedCols) * (w + gap), py = oy + Math.floor(i / usedCols) * (h + gap);
+    x.drawImage(one, px, py);
+    x.strokeStyle = "#bbb"; x.lineWidth = 1; x.strokeRect(px - .5, py - .5, w + 1, h + 1);
+  }
+}
+
+function renderAll() {
+  renderPreview();
+  if (cut) buildSheet($("sheetcv"));
+  else { $("sheetcv").width = 200; $("sheetcv").height = 120; }
+}
+
+async function jpgWithDpi(canvas) {
+  const blob = await new Promise(r => canvas.toBlob(r, "image/jpeg", 0.98));
+  const b = new Uint8Array(await blob.arrayBuffer());
+  const d = dpi();
+  if (b[2] === 0xFF && b[3] === 0xE0) { b[13] = 1; b[14] = d >> 8; b[15] = d & 255; b[16] = d >> 8; b[17] = d & 255; }
+  return new Blob([b], { type: "image/jpeg" });
+}
+function save(blob, name) {
+  const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = name; a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+}
+
+$("dlOne").onclick = async () => save(await jpgWithDpi($("cv")), `passport-1.5x1.9in-${dpi()}dpi.jpg`);
+$("dlSheet").onclick = async () => {
+  const c = document.createElement("canvas"); buildSheet(c);
+  save(await jpgWithDpi(c), `passport-sheet-${$("paper").value}-${dpi()}dpi.jpg`);
+};
+$("dlPng").onclick = () => {
+  const w = pw(), h = ph(), c = document.createElement("canvas"); c.width = w; c.height = h;
+  const x = c.getContext("2d"), keep = bg; bg = "rgba(0,0,0,0)"; drawPhoto(x, w, h); bg = keep;
+  c.toBlob(b => save(b, "passport-transparent.png"));
+};
+
+function setBg(c, btn) {
+  bg = c; ["bBlue", "bWhite"].forEach(i => $(i).classList.remove("on")); if (btn) $(btn).classList.add("on");
+  renderAll();
+}
+$("bBlue").onclick = () => setBg("#2b6cc4", "bBlue");
+$("bWhite").onclick = () => setBg("#ffffff", "bWhite");
+$("bCustom").oninput = e => setBg(e.target.value);
+["zoom", "ox", "oy", "br", "dpi", "paper", "copies"].forEach(i => $(i).addEventListener("input", renderAll));
+renderAll();
+</script>
+</body>
+</html>
